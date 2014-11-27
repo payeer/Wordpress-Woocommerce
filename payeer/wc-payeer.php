@@ -66,11 +66,6 @@ class WC_PAYEER extends WC_Payment_Gateway
 
 	function is_valid_for_use()
 	{
-		if (!in_array(get_option('woocommerce_currency'), array('RUB', 'USD', 'EUR')))
-		{
-			return false;
-		}
-		
 		return true;
 	}
 
