@@ -1,35 +1,18 @@
 <?php 
 /*
-  Plugin Name: Payeer Payment
+  Plugin Name: Payeer
   Plugin URI: 
   Description: 
   Version: 1.0
-  Author: DL
+  Author: Payeer
   Author URI: 
  */
- 
-//TODO: Выбор платежной системы на стороне магазина
 
-if ( ! defined( 'ABSPATH' ) ) exit;
- 
-function payeer_rub_currency_symbol( $currency_symbol, $currency ) 
+if (!defined('ABSPATH'))
 {
-    if($currency == "RUB") 
-	{
-        $currency_symbol = 'р.';
-    }
-	
-    return $currency_symbol;
+	exit;
 }
 
-function payeer_rub_currency( $currencies ) 
-{
-    $currencies["RUB"] = 'Russian Roubles';
-    return $currencies;
-}
-
-add_filter( 'woocommerce_currency_symbol', 'payeer_rub_currency_symbol', 10, 2 );
-add_filter( 'woocommerce_currencies', 'payeer_rub_currency', 10, 1 );
 add_action('plugins_loaded', 'woocommerce_payeer', 0);
 
 function woocommerce_payeer()
@@ -53,7 +36,7 @@ class WC_PAYEER extends WC_Payment_Gateway
 		global $woocommerce;
 
 		$this->id = 'payeer';
-		$this->icon = apply_filters('woocommerce_payeer_icon', ''.$plugin_dir.'payeer.png');
+		$this->icon = apply_filters('woocommerce_payeer_icon', $plugin_dir . 'payeer.png');
 		$this->has_fields = false;
 
 		$this->init_form_fields();
@@ -65,7 +48,8 @@ class WC_PAYEER extends WC_Payment_Gateway
 		$this->payeer_secret_key = $this->get_option('payeer_secret_key');
 		$this->email_error = $this->get_option('email_error');
 		$this->ip_filter = $this->get_option('ip_filter');
-		$this->debug = $this->get_option('debug');
+		$this->order_desc = $this->get_option('order_desc');
+		$this->log_file = $this->get_option('log_file');
 		$this->description = $this->get_option('description');
 
 		add_action('woocommerce_receipt_' . $this->id, array($this, 'receipt_page'));
@@ -82,94 +66,91 @@ class WC_PAYEER extends WC_Payment_Gateway
 
 	function is_valid_for_use()
 	{
-		if (!in_array(get_option('woocommerce_currency'), array('RUB')))
-		{
-			return false;
-		}
-		
 		return true;
 	}
 
 	public function admin_options() 
 	{
-		?>
-		<h3><? _e('Payeer', 'woocommerce'); ?></h3>
-		<p><? _e('Configure the receive electronic payments through Payeer.', 'woocommerce'); ?></p>
+		?><h3><?php _e('Payeer', 'woocommerce'); ?></h3>
+		<p><?php _e('Настройка приема электронных платежей через Payeer.', 'woocommerce'); ?></p>
 
-		<? if ( $this->is_valid_for_use() ) : ?>
-
-		<table class="form-table">
-
-		<?    	
-    			$this->generate_settings_html();
-		?>
-		</table><!--/.form-table-->
-    		
-		<? else : ?>
-		<div class="inline error"><p><strong><? _e('The gateway is disabled', 'woocommerce'); ?></strong>: <? _e('Payeer does not support exchange of Your store.', 'woocommerce' ); ?></p></div>
-		<?
-			endif;
-
-    } 
+		<?php if ( $this->is_valid_for_use() ) : ?>
+			<table class="form-table">
+			<?php    	
+					$this->generate_settings_html();
+			?>
+			</table>
+				
+		<?php else : ?>
+			<div class="inline error"><p><strong><?php _e('Шлюз отключен', 'woocommerce'); ?></strong>: <?php _e('Payeer не поддерживает валюты Вашего магазина.', 'woocommerce' ); ?></p></div>
+			<?php
+		endif;
+    }
 
 	function init_form_fields()
 	{
 		$this->form_fields = array(
-				'enabled' => array(
-					'title' => __('Enable/Disable', 'woocommerce'),
-					'type' => 'checkbox',
-					'label' => __('Enable', 'woocommerce'),
-					'default' => 'yes'
-				),
-				'title' => array(
-					'title' => __('Name', 'woocommerce'),
-					'type' => 'text', 
-					'description' => __( 'This is the name that the user sees when selecting the payment method.', 'woocommerce' ), 
-					'default' => __('Payeer', 'woocommerce')
-				),
-				'payeer_url' => array(
-					'title' => __('The URL of the merchant', 'woocommerce'),
-					'type' => 'text',
-					'description' => __('url for payment in the system Payeer', 'woocommerce'),
-					'default' => '//payeer.com/merchant/'
-				),
-				'payeer_merchant' => array(
-					'title' => __('ID store', 'woocommerce'),
-					'type' => 'text',
-					'description' => __('The store identifier registered in the system "PAYEER".<br/>it can be found in <a href="http://www.payeer.com/account/">Payeer account</a>: "Account -> My store -> Edit".', 'woocommerce'),
-					'default' => ''
-				),
-				'payeer_secret_key' => array(
-					'title' => __('Secret key', 'woocommerce'),
-					'type' => 'password',
-					'description' => __('The secret key notification about the payment,<br/>which is used to verify the integrity of the received information<br/>and unambiguous identification of the sender.<br/>Must match the secret key specified in the <a href="http://www.payeer.com/account/">Payeer account</a>: "Account -> My store -> Edit".', 'woocommerce'),
-					'default' => ''
-				),
-				'debug' => array(
-					'title' => __('Logging', 'woocommerce'),
-					'type' => 'checkbox',
-					'label' => __('The query log from Payeer is stored in the file: wp-content/plugins/payeer/payeer.log', 'woocommerce'),
-					'default' => 'no'
-				),
-				'ip_filter' => array(
-					'title' => __('IP filter', 'woocommerce'),
-					'type' => 'text',
-					'description' => __('The list of trusted ip addresses, you can specify the mask', 'woocommerce'),
-					'default' => ''
-				),
-				'email_error' => array(
-					'title' => __('Email for errors', 'woocommerce'),
-					'type' => 'text',
-					'description' => __('Email to send payment errors', 'woocommerce'),
-					'default' => ''
-				),
-				'description' => array(
-					'title' => __( 'Description', 'woocommerce' ),
-					'type' => 'textarea',
-					'description' => __( 'Description of the payment method that the customer will see on your website.', 'woocommerce' ),
-					'default' => 'Payment via payeer.'
-				)
-			);
+			'enabled' => array(
+				'title' => __('Включить/Выключить', 'woocommerce'),
+				'type' => 'checkbox',
+				'label' => __('Включен', 'woocommerce'),
+				'default' => 'yes'
+			),
+			'title' => array(
+				'title' => __('Название', 'woocommerce'),
+				'type' => 'text', 
+				'description' => __( 'Это название, которое пользователь видит во время выбора способа оплаты.', 'woocommerce' ), 
+				'default' => __('Payeer', 'woocommerce')
+			),
+			'payeer_url' => array(
+				'title' => __('URL мерчанта', 'woocommerce'),
+				'type' => 'text',
+				'description' => __('url для оплаты в системе Payeer', 'woocommerce'),
+				'default' => '//payeer.com/merchant/'
+			),
+			'payeer_merchant' => array(
+				'title' => __('Идентификатор магазина', 'woocommerce'),
+				'type' => 'text',
+				'description' => __('Идентификатор магазина, зарегистрированного в системе "PAYEER".<br/>Узнать его можно в <a href="http://www.payeer.com/account/">аккаунте Payeer</a>: "Аккаунт -> Мой магазин -> Изменить".', 'woocommerce'),
+				'default' => ''
+			),
+			'payeer_secret_key' => array(
+				'title' => __('Секретный ключ', 'woocommerce'),
+				'type' => 'password',
+				'description' => __('Секретный ключ оповещения о выполнении платежа,<br/>который используется для проверки целостности полученной информации<br/>и однозначной идентификации отправителя.<br/>Должен совпадать с секретным ключем, указанным в <a href="http://www.payeer.com/account/">аккаунте Payeer</a>: "Аккаунт -> Мой магазин -> Изменить".', 'woocommerce'),
+				'default' => ''
+			),
+			'order_desc' => array(
+				'title' => __('Комментарий к оплате', 'woocommerce'),
+				'type' => 'text',
+				'description' => __('Пояснение оплаты заказа', 'woocommerce'),
+				'default' => ''
+			),
+			'log_file' => array(
+				'title' => __('Путь до файла для журнала оплат через Payeer (например, /payeer_orders.log)', 'woocommerce'),
+				'type' => 'text',
+				'description' => __('Если путь не указан, то журнал не записывается', 'woocommerce'),
+				'default' => ''
+			),
+			'ip_filter' => array(
+				'title' => __('IP фильтр', 'woocommerce'),
+				'type' => 'text',
+				'description' => __('Список доверенных ip адресов, можно указать маску', 'woocommerce'),
+				'default' => ''
+			),
+			'email_error' => array(
+				'title' => __('Email для ошибок', 'woocommerce'),
+				'type' => 'text',
+				'description' => __('Email для отправки ошибок оплаты', 'woocommerce'),
+				'default' => ''
+			),
+			'description' => array(
+				'title' => __( 'Description', 'woocommerce' ),
+				'type' => 'textarea',
+				'description' => __( 'Описанием метода оплаты которое клиент будет видеть на вашем сайте.', 'woocommerce' ),
+				'default' => 'Оплата с помощью Payeer'
+			)
+		);
 	}
 
 	function payment_fields()
@@ -184,7 +165,7 @@ class WC_PAYEER extends WC_Payment_Gateway
 	{
 		global $woocommerce;
 
-		$order = new WC_Order( $order_id );
+		$order = new WC_Order($order_id);
 
 		$m_url = $this->payeer_url;
 
@@ -193,8 +174,8 @@ class WC_PAYEER extends WC_Payment_Gateway
 		$m_shop		= $this->payeer_merchant;
 		$m_orderid	= $order_id;
 		$m_amount	= $out_summ;
-		$m_curr		= 'RUB';
-		$m_desc		= base64_encode('Payment order No. '.$m_orderid);
+		$m_curr		= get_option('woocommerce_currency');
+		$m_desc		= base64_encode($this->order_desc);
 		$m_key		= $this->payeer_secret_key;
 			
 		$arHash = array
@@ -215,7 +196,7 @@ class WC_PAYEER extends WC_Payment_Gateway
 				<input type="hidden" name="m_curr" value="' . $m_curr . '">
 				<input type="hidden" name="m_desc" value="' . $m_desc . '">
 				<input type="hidden" name="m_sign" value="' . $sign . '">
-				<input type="submit" name="m_process" value="Pay" />
+				<input type="submit" name="m_process" value="Оплатить" />
 			</form>';
 	}
 	
@@ -231,14 +212,14 @@ class WC_PAYEER extends WC_Payment_Gateway
 	
 	function receipt_page($order)
 	{
-		echo '<p>'.__('Thank you for Your order, please click the button below to pay.', 'woocommerce').'</p>';
+		echo '<p>'.__('Спасибо за Ваш заказ, пожалуйста, нажмите кнопку ниже, чтобы заплатить.', 'woocommerce').'</p>';
 		echo $this->generate_form($order);
 	}
 	
 	function check_ipn_response()
 	{
 		global $woocommerce;
-		if (isset($_GET['payeer']) AND $_GET['payeer'] == 'result')
+		if (isset($_GET['payeer']) && $_GET['payeer'] == 'result')
 		{
 			if (isset($_POST["m_operation_id"]) && isset($_POST["m_sign"]))
 			{
@@ -301,63 +282,62 @@ class WC_PAYEER extends WC_Payment_Gateway
 					"status				".$_POST["m_status"]."\n".
 					"sign				".$_POST["m_sign"]."\n\n";
 						
-				if ($this->debug == 'yes')
+				if (!empty($this->log_file))
 				{	
-					file_put_contents($_SERVER['DOCUMENT_ROOT'].'/wp-content/plugins/payeer/payeer.log', $log_text, FILE_APPEND);
+					file_put_contents($_SERVER['DOCUMENT_ROOT'] . $this->log_file, $log_text, FILE_APPEND);
 				}
+				
+				$order = new WC_Order($_POST['m_orderid']);
 				
 				if ($_POST["m_sign"] == $sign_hash && $_POST['m_status'] == "success" && $valid_ip)
 				{
-					echo $_POST['m_orderid']."|success";
-					$order = new WC_Order($_POST['m_orderid']);
-					$order->update_status('processing', __('The payment is successfully paid', 'woocommerce'));
+					$order->update_status('processing', __('Платеж успешно оплачен', 'woocommerce'));
 					WC()->cart->empty_cart();
-					exit;
+					exit ($_POST['m_orderid'] . '|success');
 				}
-				
-				echo $_POST['m_orderid']."|error";
-				$order = new WC_Order($_POST['m_orderid']);
-				$order->update_status('failed', __('The payment is not paid', 'woocommerce'));
-				
-				$to = $this->email_error;
-				$subject = "Error payment";
-				$message = "Failed to make the payment through the system Payeer for the following reasons:\n\n";
-				if ($_POST["m_sign"] != $sign_hash)
+				else
 				{
-					$message.=" - Do not match the digital signature\n";
+					$order->update_status('failed', __('Платеж не оплачен', 'woocommerce'));
+
+					$to = $this->email_error;
+					$subject = "Ошибка оплаты";
+					$message = "Не удалось провести платёж через систему Payeer по следующим причинам:\n\n";
+					if ($_POST["m_sign"] != $sign_hash)
+					{
+						$message .= " - Не совпадают цифровые подписи\n";
+					}
+					if ($_POST['m_status'] != "success")
+					{
+						$message .= " - Cтатус платежа не является success\n";
+					}
+					if (!$valid_ip)
+					{
+						$message .= " - ip-адрес сервера не является доверенным\n";
+						$message .= "   доверенные ip: " . $this->ip_filter . "\n";
+						$message .= "   ip текущего сервера: " . $_SERVER['REMOTE_ADDR'] . "\n";
+					}
+					$message .= "\n".$log_text;
+					$headers = "From: no-reply@" . $_SERVER['HTTP_SERVER'] . "\r\nContent-type: text/plain; charset=utf-8 \r\n";
+					mail($to, $subject, $message, $headers);
+					exit ($_POST['m_orderid'] . '|error');
 				}
-				if ($_POST['m_status'] != "success")
-				{
-					$message.=" - The payment status is not success\n";
-				}
-				if (!$valid_ip)
-				{
-					$message.=" - the ip address of the server is not trusted\n";
-					$message.="   trusted ip: ".$this->ip_filter."\n";
-					$message.="   ip of the current server: ".$_SERVER['REMOTE_ADDR']."\n";
-				}
-				$message.="\n".$log_text;
-				$headers = "From: no-reply@".$_SERVER['HTTP_SERVER']."\r\nContent-type: text/plain; charset=utf-8 \r\n";
-				mail($to, $subject, $message, $headers);
-				exit;
 			}
 			else
 			{
 				wp_die('IPN Request Failure');
 			}
 		}
-		else if (isset($_GET['payeer']) AND $_GET['payeer'] == 'calltrue')
+		else if (isset($_GET['payeer']) && $_GET['payeer'] == 'calltrue')
 		{
 			WC()->cart->empty_cart();
-			$order = new WC_Order($_POST['m_orderid']);
-			$order->add_order_note(__('Payment is successful.', 'woocommerce'));
-			$order->payment_complete();
-			wp_redirect( $this->get_return_url( $order ) );
+			$order = new WC_Order($_GET['m_orderid']);
+			wp_redirect($this->get_return_url($order));
 		}
-		else if (isset($_GET['payeer']) AND $_GET['payeer'] == 'callfalse')
+		else if (isset($_GET['payeer']) && $_GET['payeer'] == 'callfalse')
 		{
-			echo $_POST['m_orderid']."|error";
-			exit;
+			WC()->cart->empty_cart();
+			$order = new WC_Order($_GET['m_orderid']);
+			wp_redirect($this->get_return_url($order));
 		}
 	}
 }
