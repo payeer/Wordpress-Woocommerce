@@ -236,7 +236,24 @@ class WC_PAYEER extends WC_Payment_Gateway
 					$_POST['m_desc'],
 					$_POST['m_status'],
 					$m_key);
+				
 				$sign_hash = strtoupper(hash('sha256', implode(":", $arHash)));
+				
+				if ($_POST["m_sign"] != $sign_hash)
+				{
+					if (!empty($this->email_error))
+					{
+						$to = $this->email_error;
+						$subject = "Ошибка оплаты";
+						$message = "Не удалось провести платёж через систему Payeer по следующим причинам:\n\n";
+						$message .= " - Не совпадают цифровые подписи\n";
+						$message .= "\n".$log_text;
+						$headers = "From: no-reply@" . $_SERVER['HTTP_SERVER'] . "\r\nContent-type: text/plain; charset=utf-8 \r\n";
+						mail($to, $subject, $message, $headers);
+					}
+					
+					exit ($_POST['m_orderid'] . '|error');
+				}
 				
 				// проверка принадлежности ip списку доверенных ip
 				$list_ip_str = str_replace(' ', '', $this->ip_filter);
@@ -289,7 +306,7 @@ class WC_PAYEER extends WC_Payment_Gateway
 				
 				$order = new WC_Order($_POST['m_orderid']);
 				
-				if ($_POST["m_sign"] == $sign_hash && $_POST['m_status'] == "success" && $valid_ip)
+				if ($_POST['m_status'] == "success" && $valid_ip)
 				{
 					$order->update_status('processing', __('Платеж успешно оплачен', 'woocommerce'));
 					WC()->cart->empty_cart();
@@ -298,27 +315,27 @@ class WC_PAYEER extends WC_Payment_Gateway
 				else
 				{
 					$order->update_status('failed', __('Платеж не оплачен', 'woocommerce'));
-
-					$to = $this->email_error;
-					$subject = "Ошибка оплаты";
-					$message = "Не удалось провести платёж через систему Payeer по следующим причинам:\n\n";
-					if ($_POST["m_sign"] != $sign_hash)
+					
+					if (!empty($this->email_error))
 					{
-						$message .= " - Не совпадают цифровые подписи\n";
+						$to = $this->email_error;
+						$subject = "Ошибка оплаты";
+						$message = "Не удалось провести платёж через систему Payeer по следующим причинам:\n\n";
+						if ($_POST['m_status'] != "success")
+						{
+							$message .= " - Cтатус платежа не является success\n";
+						}
+						if (!$valid_ip)
+						{
+							$message .= " - ip-адрес сервера не является доверенным\n";
+							$message .= "   доверенные ip: " . $this->ip_filter . "\n";
+							$message .= "   ip текущего сервера: " . $_SERVER['REMOTE_ADDR'] . "\n";
+						}
+						$message .= "\n".$log_text;
+						$headers = "From: no-reply@" . $_SERVER['HTTP_SERVER'] . "\r\nContent-type: text/plain; charset=utf-8 \r\n";
+						mail($to, $subject, $message, $headers);
 					}
-					if ($_POST['m_status'] != "success")
-					{
-						$message .= " - Cтатус платежа не является success\n";
-					}
-					if (!$valid_ip)
-					{
-						$message .= " - ip-адрес сервера не является доверенным\n";
-						$message .= "   доверенные ip: " . $this->ip_filter . "\n";
-						$message .= "   ip текущего сервера: " . $_SERVER['REMOTE_ADDR'] . "\n";
-					}
-					$message .= "\n".$log_text;
-					$headers = "From: no-reply@" . $_SERVER['HTTP_SERVER'] . "\r\nContent-type: text/plain; charset=utf-8 \r\n";
-					mail($to, $subject, $message, $headers);
+					
 					exit ($_POST['m_orderid'] . '|error');
 				}
 			}

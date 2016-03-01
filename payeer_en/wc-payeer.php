@@ -236,7 +236,24 @@ class WC_PAYEER extends WC_Payment_Gateway
 					$_POST['m_desc'],
 					$_POST['m_status'],
 					$m_key);
+					
 				$sign_hash = strtoupper(hash('sha256', implode(":", $arHash)));
+				
+				if ($_POST["m_sign"] != $sign_hash)
+				{
+					if (!empty($this->email_error))
+					{
+						$to = $this->email_error;
+						$subject = "Error payment";
+						$message = "Failed to make the payment through Payeer for the following reasons:\n\n";
+						$message .= " - Do not match the digital signature\n";
+						$message .= "\n".$log_text;
+						$headers = "From: no-reply@" . $_SERVER['HTTP_SERVER'] . "\r\nContent-type: text/plain; charset=utf-8 \r\n";
+						mail($to, $subject, $message, $headers);
+					}
+					
+					exit ($_POST['m_orderid'] . '|error');
+				}
 				
 				// проверка принадлежности ip списку доверенных ip
 				$list_ip_str = str_replace(' ', '', $this->ip_filter);
@@ -281,7 +298,7 @@ class WC_PAYEER extends WC_Payment_Gateway
 					"description		".base64_decode($_POST["m_desc"])."\n".
 					"status				".$_POST["m_status"]."\n".
 					"sign				".$_POST["m_sign"]."\n\n";
-						
+
 				if (!empty($this->log_file))
 				{	
 					file_put_contents($_SERVER['DOCUMENT_ROOT'] . $this->log_file, $log_text, FILE_APPEND);
@@ -289,7 +306,7 @@ class WC_PAYEER extends WC_Payment_Gateway
 				
 				$order = new WC_Order($_POST['m_orderid']);
 				
-				if ($_POST["m_sign"] == $sign_hash && $_POST['m_status'] == "success" && $valid_ip)
+				if ($_POST['m_status'] == "success" && $valid_ip)
 				{
 					$order->update_status('processing', __('The payment is successfully paid', 'woocommerce'));
 					WC()->cart->empty_cart();
@@ -298,27 +315,27 @@ class WC_PAYEER extends WC_Payment_Gateway
 				else
 				{
 					$order->update_status('failed', __('The payment is not paid', 'woocommerce'));
-
-					$to = $this->email_error;
-					$subject = "Error payment";
-					$message = "Failed to make the payment through Payeer for the following reasons:\n\n";
-					if ($_POST["m_sign"] != $sign_hash)
+					
+					if (!empty($this->email_error))
 					{
-						$message .= " - Do not match the digital signature\n";
+						$to = $this->email_error;
+						$subject = "Error payment";
+						$message = "Failed to make the payment through Payeer for the following reasons:\n\n";
+						if ($_POST['m_status'] != "success")
+						{
+							$message .= " - The payment status is not success\n";
+						}
+						if (!$valid_ip)
+						{
+							$message .= " - ip address of the server is not trusted\n";
+							$message .= "   trusted ip: " . $this->ip_filter . "\n";
+							$message .= "   the ip of the current server: " . $_SERVER['REMOTE_ADDR'] . "\n";
+						}
+						$message .= "\n".$log_text;
+						$headers = "From: no-reply@" . $_SERVER['HTTP_SERVER'] . "\r\nContent-type: text/plain; charset=utf-8 \r\n";
+						mail($to, $subject, $message, $headers);
 					}
-					if ($_POST['m_status'] != "success")
-					{
-						$message .= " - The payment status is not success\n";
-					}
-					if (!$valid_ip)
-					{
-						$message .= " - ip address of the server is not trusted\n";
-						$message .= "   trusted ip: " . $this->ip_filter . "\n";
-						$message .= "   the ip of the current server: " . $_SERVER['REMOTE_ADDR'] . "\n";
-					}
-					$message .= "\n".$log_text;
-					$headers = "From: no-reply@" . $_SERVER['HTTP_SERVER'] . "\r\nContent-type: text/plain; charset=utf-8 \r\n";
-					mail($to, $subject, $message, $headers);
+					
 					exit ($_POST['m_orderid'] . '|error');
 				}
 			}
