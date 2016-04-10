@@ -196,7 +196,7 @@ class WC_PAYEER extends WC_Payment_Gateway
 				<input type="hidden" name="m_curr" value="' . $m_curr . '">
 				<input type="hidden" name="m_desc" value="' . $m_desc . '">
 				<input type="hidden" name="m_sign" value="' . $sign . '">
-				<input type="submit" name="m_process" value="Оплатить" />
+				<input type="submit" name="m_process" value="Submit" />
 			</form>';
 	}
 	
