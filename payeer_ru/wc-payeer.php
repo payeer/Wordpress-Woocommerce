@@ -1,4 +1,16 @@
 <?php 
+/*
+    Plugin Name: WooCommerce - модуль оплаты Payeer
+    Plugin URI: https://payeer.com
+    Description: Модуль для приема платежей в платежной системе Payeer.
+    Version: 1.0.2
+    Author: Payeer
+    Author URI: https://payeer.com
+
+    Copyright: © 2010-2016 Payeer.
+	License: GNU General Public License v3.0
+	License URI: http://www.gnu.org/licenses/gpl-3.0.html
+*/
 
 if (!defined('ABSPATH'))
 {
