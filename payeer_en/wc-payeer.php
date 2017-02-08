@@ -311,6 +311,12 @@ function woocommerce_payeer()
 							$err = true;
 						}
 						
+						if ($order->post_status == 'wc-processing')
+						{
+							$message .= " - order already paid\n";
+							$err = true;
+						}
+						
 						// проверка статуса
 						
 						if (!$err)
