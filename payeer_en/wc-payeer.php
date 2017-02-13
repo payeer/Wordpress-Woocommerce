@@ -311,12 +311,6 @@ function woocommerce_payeer()
 							$err = true;
 						}
 						
-						if ($order->post_status == 'wc-processing')
-						{
-							$message .= " - order already paid\n";
-							$err = true;
-						}
-						
 						// проверка статуса
 						
 						if (!$err)
@@ -324,8 +318,13 @@ function woocommerce_payeer()
 							switch ($_POST['m_status'])
 							{
 								case 'success':
-									$order->update_status('processing', __('payment was successfully paid', 'woocommerce'));
-									WC()->cart->empty_cart();
+								
+									if ($order->post_status != 'wc-processing')
+									{
+										$order->update_status('processing', __('payment was successfully paid', 'woocommerce'));
+										WC()->cart->empty_cart();
+									}
+
 									break;
 									
 								default:
