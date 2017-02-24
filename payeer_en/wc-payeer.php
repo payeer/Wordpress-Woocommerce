@@ -278,8 +278,8 @@ function woocommerce_payeer()
 					if (!$valid_ip)
 					{
 						$message .= " - ip address of the server is not trusted\n" .
-						"   доверенные ip: " . $sIP . "\n" .
-						"   ip текущего сервера: " . $_SERVER['REMOTE_ADDR'] . "\n";
+						"   trusted ip: " . $sIP . "\n" .
+						"   ip of the current server: " . $_SERVER['REMOTE_ADDR'] . "\n";
 						$err = true;
 					}
 
