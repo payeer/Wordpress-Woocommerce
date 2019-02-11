@@ -190,7 +190,7 @@ function woocommerce_payeer()
 				<input type="hidden" name="m_curr" value="' . $m_curr . '">
 				<input type="hidden" name="m_desc" value="' . $m_desc . '">
 				<input type="hidden" name="m_sign" value="' . $sign . '">
-				<input type="submit" name="m_process" value="Оплатить" />
+				<input type="submit" name="m_process" value="Pay" />
 			</form>';
 		}
 		
@@ -278,8 +278,8 @@ function woocommerce_payeer()
 					if (!$valid_ip)
 					{
 						$message .= " - ip address of the server is not trusted\n" .
-						"   доверенные ip: " . $sIP . "\n" .
-						"   ip текущего сервера: " . $_SERVER['REMOTE_ADDR'] . "\n";
+						"   trusted ip: " . $sIP . "\n" .
+						"   ip of the current server: " . $_SERVER['REMOTE_ADDR'] . "\n";
 						$err = true;
 					}
 
@@ -318,8 +318,13 @@ function woocommerce_payeer()
 							switch ($_POST['m_status'])
 							{
 								case 'success':
-									$order->update_status('processing', __('payment was successfully paid', 'woocommerce'));
-									WC()->cart->empty_cart();
+								
+									if ($order->post_status != 'wc-processing')
+									{
+										$order->update_status('processing', __('payment was successfully paid', 'woocommerce'));
+										WC()->cart->empty_cart();
+									}
+
 									break;
 									
 								default:
